@@ -1,3 +1,24 @@
+Metadata-Version: 2.1
+Name: hybrid-compiler
+Version: 0.1.0
+Summary: RL-based compiler for hybrid qubit-qumode quantum Hamiltonians
+Home-page: https://github.com/jindahe/RL-for-hybrid-CV-DV-complier
+Author: Hybrid CV-DV Compiler Team
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Science/Research
+Classifier: Topic :: Scientific/Engineering :: Physics
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Provides-Extra: all
+Provides-Extra: dev
+Provides-Extra: torch
+
 # RL-based Hybrid CV-DV Quantum Hamiltonian Compiler
 
 A reinforcement learning framework for compiling target Hamiltonians into executable gate sequences for hybrid continuous-variable (CV) / discrete-variable (DV) quantum systems.
