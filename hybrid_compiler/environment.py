@@ -148,8 +148,11 @@ class HybridCompilerEnv(gym.Env):
         obs.append(self._step_count / self.config.max_gates)
         
         # Recent action history (normalized by action space size)
+        # Use action_space.n as sentinel for empty slots (out of valid range)
         history = self._action_history[-self.config.state_history_length:]
-        history = history + [-1] * (self.config.state_history_length - len(history))
+        padding_value = self.action_space.n  # Out-of-range sentinel
+        history = history + [padding_value] * (self.config.state_history_length - len(history))
+        # Normalize to [0, 1] range (sentinel becomes 1.0)
         obs.extend([a / self.action_space.n for a in history])
         
         # Hamiltonian features

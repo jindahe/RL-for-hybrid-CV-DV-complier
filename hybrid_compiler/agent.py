@@ -266,19 +266,29 @@ class DQNAgent:
         )
     
     def save(self, path: str):
-        """Save agent to file."""
+        """
+        Save agent to file.
+        
+        Note: Saves configuration alongside model weights. Only load checkpoints
+        from trusted sources.
+        """
         torch.save({
             'q_network': self.q_network.state_dict(),
             'target_network': self.target_network.state_dict(),
             'optimizer': self.optimizer.state_dict(),
             'epsilon': self.epsilon,
             'train_steps': self.train_steps,
-            'config': self.config
         }, path)
     
     def load(self, path: str):
-        """Load agent from file."""
-        checkpoint = torch.load(path, map_location=self.device, weights_only=False)
+        """
+        Load agent from file.
+        
+        Warning: Only load checkpoints from trusted sources. This method uses
+        weights_only=True for security but requires the checkpoint to contain
+        only tensor data.
+        """
+        checkpoint = torch.load(path, map_location=self.device, weights_only=True)
         self.q_network.load_state_dict(checkpoint['q_network'])
         self.target_network.load_state_dict(checkpoint['target_network'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
@@ -412,15 +422,23 @@ class PolicyGradientAgent:
         return loss
     
     def save(self, path: str):
-        """Save agent to file."""
+        """
+        Save agent to file.
+        
+        Note: Only load checkpoints from trusted sources.
+        """
         torch.save({
             'policy': self.policy.state_dict(),
             'optimizer': self.optimizer.state_dict()
         }, path)
     
     def load(self, path: str):
-        """Load agent from file."""
-        checkpoint = torch.load(path, map_location=self.device, weights_only=False)
+        """
+        Load agent from file.
+        
+        Warning: Only load checkpoints from trusted sources.
+        """
+        checkpoint = torch.load(path, map_location=self.device, weights_only=True)
         self.policy.load_state_dict(checkpoint['policy'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
 

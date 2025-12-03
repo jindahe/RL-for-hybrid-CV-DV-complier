@@ -41,6 +41,10 @@ class TrainingConfig:
     early_stopping: bool = True
     target_success_rate: float = 0.9
     patience: int = 100
+    
+    # Evolution time range for random Hamiltonians
+    evolution_time_min: float = 0.1
+    evolution_time_max: float = 2.0
 
 
 class TrainingMetrics:
@@ -133,7 +137,9 @@ def train_dqn(
         options = {}
         if hamiltonian_generator is not None:
             options['hamiltonian'] = hamiltonian_generator()
-            options['evolution_time'] = np.random.uniform(0.1, 2.0)
+            options['evolution_time'] = np.random.uniform(
+                config.evolution_time_min, config.evolution_time_max
+            )
         
         state, info = env.reset(options=options)
         
@@ -260,7 +266,9 @@ def train_policy_gradient(
         options = {}
         if hamiltonian_generator is not None:
             options['hamiltonian'] = hamiltonian_generator()
-            options['evolution_time'] = np.random.uniform(0.1, 2.0)
+            options['evolution_time'] = np.random.uniform(
+                config.evolution_time_min, config.evolution_time_max
+            )
         
         state, info = env.reset(options=options)
         
