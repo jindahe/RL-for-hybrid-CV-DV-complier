@@ -1,5 +1,21 @@
 from src.pattern_match import *
 
+def is_different_mode(node1:ParsedNode, node2:ParsedNode):
+    """judge whether the nodes are in different modes (e.g. b(0) vs b(1))"""
+    # only support b/ba/bc/dagger(b(...)) structure
+    def get_mode_index(node):
+        n = node
+        while hasattr(n, 'children') and n.children:
+            n = n.children[0]
+        # get name is a number's node
+        try:
+            return int(n.name)
+        except Exception:
+            return None
+    idx1 = get_mode_index(node1)
+    idx2 = get_mode_index(node2)
+    return idx1 is not None and idx2 is not None and idx1 != idx2
+
 def _is_const(node:ParsedNode):
     if node.name in ('nsign', 'sum', 'prod', 'complex'):
         return all(_is_const(c) for c in node.children)
@@ -279,9 +295,11 @@ decomp_rules_list = [
     Rule(parse_str('exp(prod(t, sigma(3, qb1), sum(prod(c1,M,N), prod(c2, Ndg, Mdg)))))'),
       ['M', 'N', 'Mdg', 'Ndg', 't', 'c1', 'c2', 'qb1'],
       parse_str('BCH( prod(t2, qgate(x, qb1), BOD(N, qb2), qgate(x, qb1)), prod(t2, BOD(M, qb3)))'),
-      lambda x : x['M'].name != '1' and x['N'].name != '1' and __is_squared_factor(complex(x['t'].name)*complex(x['c1'].name), 1) 
-        and __check_equality_list(x, [
+      lambda x : x['M'].name != '1' and x['N'].name != '1' and _is_const(x['c1']) and __is_squared_factor(complex(x['t'].name)*complex(x['c1'].name), 1) 
+        and ( __check_equality_list(x, [
           (parse_str('sum(prod(1,M,N), prod(-1,N,M))'), parse_str('0')),
+        ]) or is_different_mode(x['M'], x['N']))
+        and __check_equality_list(x, [
           (parse_str('dagger(M)'), parse_str('Mdg')),
           (parse_str('dagger(N)'), parse_str('Ndg')),
           (parse_str('c1'), parse_str('nsign(c2)')),
@@ -294,9 +312,11 @@ decomp_rules_list = [
     Rule(parse_str('exp(prod(t, sigma(3, qb1), sum(prod(c1,M,N), prod(c2, Ndg, Mdg)))))'),
       ['M', 'N', 'Mdg', 'Ndg', 't', 'c1', 'c2', 'qb1'],
       parse_str('BCH( prod(nsign(t2), qgate(x, qb1), BOD(N, qb2), qgate(x, qb1)), prod(t2, BOD(M, qb3)))'),
-      lambda x : x['M'].name != '1' and x['N'].name != '1' and __is_squared_factor(complex(x['t'].name)*complex(x['c1'].name), -1) 
-        and __check_equality_list(x, [
+      lambda x : x['M'].name != '1' and x['N'].name != '1' and _is_const(x['c1']) and __is_squared_factor(complex(x['t'].name)*complex(x['c1'].name), -1) 
+        and ( __check_equality_list(x, [
           (parse_str('sum(prod(1,M,N), prod(-1,N,M))'), parse_str('0')),
+        ]) or is_different_mode(x['M'], x['N']))
+        and __check_equality_list(x, [
           (parse_str('dagger(M)'), parse_str('Mdg')),
           (parse_str('dagger(N)'), parse_str('Ndg')),
           (parse_str('c1'), parse_str('nsign(c2)')),
@@ -305,14 +325,85 @@ decomp_rules_list = [
          qb2=(lambda _,env : __increment_counter(env.index_counters, 'qubit')),
          qb3=(lambda _,env : __increment_counter(env.index_counters, 'qubit'))
          )),
-    
+    #6 for higher order prod(M,M) * N
+    Rule(parse_str('exp(prod(t, sigma(3, qb1), sum(prod(c1,prod(M, M),N), prod(c2, Ndg, prod(Mdg, Mdg)))))'),
+      ['M', 'N', 'Mdg', 'Ndg', 't', 'c1', 'c2', 'qb1'],
+      parse_str('BCH( prod(t2, qgate(x, qb1), BOD(N, qb2), qgate(x, qb1)), prod(t2, BOD(prod(M, M), qb3)))'),
+      lambda x : x['M'].name != '1' and x['N'].name != '1' and _is_const(x['c1']) and __is_squared_factor(complex(x['t'].name)*complex(x['c1'].name), 1) 
+        and ( __check_equality_list(x, [
+          (parse_str('sum(prod(1,M,N), prod(-1,N,M))'), parse_str('0')),
+        ]) or is_different_mode(x['M'], x['N']))
+        and __check_equality_list(x, [
+          (parse_str('dagger(M)'), parse_str('Mdg')),
+          (parse_str('dagger(N)'), parse_str('Ndg')),
+          (parse_str('c1'), parse_str('nsign(c2)')),
+        ]),
+    dict(t2=lambda x,_ : __get_squared_factor(complex(x['t'].name)*complex(x['c1'].name), 1) * 1j,
+         qb2=(lambda _,env : __increment_counter(env.index_counters, 'qubit')),
+         qb3=(lambda _,env : __increment_counter(env.index_counters, 'qubit'))
+         )),
+    #6b
+    Rule(parse_str('exp(prod(t, sigma(3, qb1), sum(prod(c1,prod(M, M),N), prod(c2, Ndg, prod(Mdg, Mdg)))))'),
+      ['M', 'N', 'Mdg', 'Ndg', 't', 'c1', 'c2', 'qb1'],
+      parse_str('BCH( prod(nsign(t2), qgate(x, qb1), BOD(N, qb2), qgate(x, qb1)), prod(t2, BOD(prod(M, M), qb3)))'),
+      lambda x : x['M'].name != '1' and x['N'].name != '1' and _is_const(x['c1']) and __is_squared_factor(complex(x['t'].name)*complex(x['c1'].name), -1) 
+        and ( __check_equality_list(x, [
+          (parse_str('sum(prod(1,M,N), prod(-1,N,M))'), parse_str('0')),
+        ]) or is_different_mode(x['M'], x['N']))
+        and __check_equality_list(x, [
+          (parse_str('dagger(M)'), parse_str('Mdg')),
+          (parse_str('dagger(N)'), parse_str('Ndg')),
+          (parse_str('c1'), parse_str('nsign(c2)')),
+        ]),
+    dict(t2=lambda x,_ : __get_squared_factor(complex(x['t'].name)*complex(x['c1'].name), -1) * 1j,
+         qb2=(lambda _,env : __increment_counter(env.index_counters, 'qubit')),
+         qb3=(lambda _,env : __increment_counter(env.index_counters, 'qubit'))
+         )),
+
+    #6 for higher order prod(prod(N,M) * prod(M,M))
+    Rule(parse_str('exp(prod(t, sigma(3, qb1), sum(prod(c1,prod(N, M), prod(M, M)), prod(c2, prod(Mdg, Mdg), prod(Mdg, Ndg)))))'),
+      ['M', 'N', 'Mdg', 'Ndg', 't', 'c1', 'c2', 'qb1'],
+      parse_str('BCH( prod(t2, qgate(x, qb1), BOD(prod(N, M), qb2), qgate(x, qb1)), prod(t2, BOD(prod(M, M), qb3)))'),
+      lambda x : x['M'].name != '1' and x['N'].name != '1' and _is_const(x['c1']) and __is_squared_factor(complex(x['t'].name)*complex(x['c1'].name), 1) 
+        and ( __check_equality_list(x, [
+          (parse_str('sum(prod(1,M,N), prod(-1,N,M))'), parse_str('0')),
+        ]) or is_different_mode(x['M'], x['N']))
+        and __check_equality_list(x, [
+          (parse_str('dagger(M)'), parse_str('Mdg')),
+          (parse_str('dagger(N)'), parse_str('Ndg')),
+          (parse_str('c1'), parse_str('nsign(c2)')),
+        ]),
+    dict(t2=lambda x,_ : __get_squared_factor(complex(x['t'].name)*complex(x['c1'].name), 1) * 1j,
+         qb2=(lambda _,env : __increment_counter(env.index_counters, 'qubit')),
+         qb3=(lambda _,env : __increment_counter(env.index_counters, 'qubit'))
+         )),
+    #6b
+    Rule(parse_str('exp(prod(t, sigma(3, qb1), sum(prod(c1,prod(N, M), prod(M, M)), prod(c2, prod(Mdg, Mdg), prod(Mdg, Ndg)))))'),
+      ['M', 'N', 'Mdg', 'Ndg', 't', 'c1', 'c2', 'qb1'],
+      parse_str('BCH( prod(t2, qgate(x, qb1), BOD(prod(N, M), qb2), qgate(x, qb1)), prod(t2, BOD(prod(M, M), qb3)))'),
+      lambda x : x['M'].name != '1' and x['N'].name != '1' and _is_const(x['c1']) and __is_squared_factor(complex(x['t'].name)*complex(x['c1'].name), -1) 
+        and ( __check_equality_list(x, [
+          (parse_str('sum(prod(1,M,N), prod(-1,N,M))'), parse_str('0')),
+        ]) or is_different_mode(x['M'], x['N']))
+        and __check_equality_list(x, [
+          (parse_str('dagger(M)'), parse_str('Mdg')),
+          (parse_str('dagger(N)'), parse_str('Ndg')),
+          (parse_str('c1'), parse_str('nsign(c2)')),
+        ]),
+    dict(t2=lambda x,_ : __get_squared_factor(complex(x['t'].name)*complex(x['c1'].name), -1) * 1j,
+         qb2=(lambda _,env : __increment_counter(env.index_counters, 'qubit')),
+         qb3=(lambda _,env : __increment_counter(env.index_counters, 'qubit'))
+         )),
+
     #7
     Rule(parse_str('exp(prod(t, sigma(3, qb1), sum(prod(c1,M,N), prod(c1, Ndg, Mdg)))))'),
       ['M', 'N', 'Mdg', 'Ndg', 't', 'c1', 'qb1'],
       parse_str('BCH( prod(t2, qgate(s, qb1), BOD(N, qb2), qgate(sdg, qb1)), prod(t2, qgate(x, qb1), BOD(M, qb3), qgate(x, qb1)))'),
-      lambda x : x['M'].name != '1' and x['N'].name != '1' and __is_squared_factor(complex(x['t'].name)*complex(x['c1'].name), 1j) 
-        and __check_equality_list(x, [
+      lambda x : x['M'].name != '1' and x['N'].name != '1' and _is_const(x['c1']) and __is_squared_factor(complex(x['t'].name)*complex(x['c1'].name), 1j) 
+        and ( __check_equality_list(x, [
           (parse_str('sum(prod(1,M,N), prod(-1,N,M))'), parse_str('0')),
+        ]) or is_different_mode(x['M'], x['N']))
+        and __check_equality_list(x, [
           (parse_str('dagger(M)'), parse_str('Mdg')),
           (parse_str('dagger(N)'), parse_str('Ndg')),
         ]),
@@ -324,9 +415,11 @@ decomp_rules_list = [
     Rule(parse_str('exp(prod(t, sigma(3, qb1), sum(prod(c1,M,N), prod(c1, Ndg, Mdg)))))'),
       ['M', 'N', 'Mdg', 'Ndg', 't', 'c1', 'qb1'],
       parse_str('BCH( prod(nsign(t2), qgate(s, qb1), BOD(N, qb2), qgate(sdg, qb1)), prod(t2, qgate(x, qb1), BOD(M, qb3), qgate(x, qb1)))'),
-      lambda x : x['M'].name != '1' and x['N'].name != '1' and __is_squared_factor(complex(x['t'].name)*complex(x['c1'].name), -1j) 
-        and __check_equality_list(x, [
+      lambda x : x['M'].name != '1' and x['N'].name != '1' and _is_const(x['c1']) and __is_squared_factor(complex(x['t'].name)*complex(x['c1'].name), -1j) 
+        and ( __check_equality_list(x, [
           (parse_str('sum(prod(1,M,N), prod(-1,N,M))'), parse_str('0')),
+        ]) or is_different_mode(x['M'], x['N']))
+        and __check_equality_list(x, [
           (parse_str('dagger(M)'), parse_str('Mdg')),
           (parse_str('dagger(N)'), parse_str('Ndg')),
         ]),
@@ -335,6 +428,72 @@ decomp_rules_list = [
          qb3=(lambda _,env : __increment_counter(env.index_counters, 'qubit'))
          )),
     
+    #7 for higher order prod(M,M) * N
+    Rule(parse_str('exp(prod(t, sigma(3, qb1), sum(prod(c1,prod(M, M),N), prod(c1, Ndg, prod(Mdg, Mdg)))))'),
+      ['M', 'N', 'Mdg', 'Ndg', 't', 'c1', 'qb1'],
+      parse_str('BCH( prod(t2, qgate(s, qb1), BOD(N, qb2), qgate(sdg, qb1)), prod(t2, qgate(x, qb1), BOD(prod(M, M), qb3), qgate(x, qb1)))'),
+      lambda x : x['M'].name != '1' and x['N'].name != '1' and _is_const(x['c1']) and __is_squared_factor(complex(x['t'].name)*complex(x['c1'].name), 1j) 
+        and ( __check_equality_list(x, [
+          (parse_str('sum(prod(1,M,N), prod(-1,N,M))'), parse_str('0')),
+        ]) or is_different_mode(x['M'], x['N']))
+        and __check_equality_list(x, [
+          (parse_str('dagger(M)'), parse_str('Mdg')),
+          (parse_str('dagger(N)'), parse_str('Ndg')),
+        ]),
+    dict(t2=lambda x,_ : __get_squared_factor(complex(x['t'].name)*complex(x['c1'].name), 1j) * 1j,
+         qb2=(lambda _,env : __increment_counter(env.index_counters, 'qubit')),
+         qb3=(lambda _,env : __increment_counter(env.index_counters, 'qubit'))
+         )),
+    #7b
+    Rule(parse_str('exp(prod(t, sigma(3, qb1), sum(prod(c1,prod(M, M),N), prod(c1, Ndg, prod(Mdg, Mdg)))))'),
+      ['M', 'N', 'Mdg', 'Ndg', 't', 'c1', 'qb1'],
+      parse_str('BCH( prod(nsign(t2), qgate(s, qb1), BOD(N, qb2), qgate(sdg, qb1)), prod(t2, qgate(x, qb1), BOD(prod(M, M), qb3), qgate(x, qb1)))'),
+      lambda x : x['M'].name != '1' and x['N'].name != '1' and _is_const(x['c1']) and __is_squared_factor(complex(x['t'].name)*complex(x['c1'].name), -1j) 
+        and ( __check_equality_list(x, [
+          (parse_str('sum(prod(1,M,N), prod(-1,N,M))'), parse_str('0')),
+        ]) or is_different_mode(x['M'], x['N']))
+        and __check_equality_list(x, [
+          (parse_str('dagger(M)'), parse_str('Mdg')),
+          (parse_str('dagger(N)'), parse_str('Ndg')),
+        ]),
+    dict(t2=lambda x,_ : __get_squared_factor(complex(x['t'].name)*complex(x['c1'].name), -1j) * 1j,
+         qb2=(lambda _,env : __increment_counter(env.index_counters, 'qubit')),
+         qb3=(lambda _,env : __increment_counter(env.index_counters, 'qubit'))
+         )),
+
+    #7 for higher order prod(prod(N,M) * prod(M,M))
+    Rule(parse_str('exp(prod(t, sigma(3, qb1), sum(prod(c1,prod(N, M), prod(M, M)), prod(c1, prod(Mdg, Mdg), prod(Mdg, Ndg)))))'),
+      ['M', 'N', 'Mdg', 'Ndg', 't', 'c1', 'qb1'],
+      parse_str('BCH( prod(t2, qgate(s, qb1), BOD(prod(N, M), qb2), qgate(sdg, qb1)), prod(t2, qgate(x, qb1), BOD(prod(M, M), qb3), qgate(x, qb1)))'),
+      lambda x : x['M'].name != '1' and x['N'].name != '1' and _is_const(x['c1']) and __is_squared_factor(complex(x['t'].name)*complex(x['c1'].name), 1j) 
+        and ( __check_equality_list(x, [
+          (parse_str('sum(prod(1,M,N), prod(-1,N,M))'), parse_str('0')),
+        ]) or is_different_mode(x['M'], x['N']))
+        and __check_equality_list(x, [
+          (parse_str('dagger(M)'), parse_str('Mdg')),
+          (parse_str('dagger(N)'), parse_str('Ndg')),
+        ]),
+    dict(t2=lambda x,_ : __get_squared_factor(complex(x['t'].name)*complex(x['c1'].name), 1j) * 1j,
+         qb2=(lambda _,env : __increment_counter(env.index_counters, 'qubit')),
+         qb3=(lambda _,env : __increment_counter(env.index_counters, 'qubit'))
+         )),
+    #7b
+    Rule(parse_str('exp(prod(t, sigma(3, qb1), sum(prod(c1,prod(N, M), prod(M, M)), prod(c1, prod(Mdg, Mdg), prod(Mdg, Ndg)))))'),
+      ['M', 'N', 'Mdg', 'Ndg', 't', 'c1', 'qb1'],
+      parse_str('BCH( prod(t2, qgate(s, qb1), BOD(prod(N, M), qb2), qgate(sdg, qb1)), prod(t2, qgate(x, qb1), BOD(prod(M, M), qb3), qgate(x, qb1)))'),
+      lambda x : x['M'].name != '1' and x['N'].name != '1' and _is_const(x['c1']) and __is_squared_factor(complex(x['t'].name)*complex(x['c1'].name), -1j) 
+        and ( __check_equality_list(x, [
+          (parse_str('sum(prod(1,M,N), prod(-1,N,M))'), parse_str('0')),
+        ]) or is_different_mode(x['M'], x['N']))
+        and __check_equality_list(x, [
+          (parse_str('dagger(M)'), parse_str('Mdg')),
+          (parse_str('dagger(N)'), parse_str('Ndg')),
+        ]),
+    dict(t2=lambda x,_ : __get_squared_factor(complex(x['t'].name)*complex(x['c1'].name), -1j) * 1j,
+         qb2=(lambda _,env : __increment_counter(env.index_counters, 'qubit')),
+         qb3=(lambda _,env : __increment_counter(env.index_counters, 'qubit'))
+         )),
+
     #8
     Rule(parse_str('exp(prod(t, M, N))'),
       ['t', 'M', 'N'],
@@ -369,7 +528,24 @@ decomp_rules_list = [
       ['M', 'N', 't', 'qb1'],
       parse_str('prod(qgate(x, qb1), trotter(prod(t2, sigma(2, qb1), sum(prod(1,M,N),nsign(dagger(prod(1,M,N))))),  prod(t3, sigma(1, qb1), sum(prod(1,M,N),dagger(prod(1,M,N))))), qgate(x, qb1) )'),
       lambda x : _is_const(x['t']) and x['M'] != parse_str('1') and x['N'] != parse_str('1') and
-        __check_equality_list(x, [(parse_str('sum(prod(1, M,N), prod(-1, N,M)))'), parse_str('0')) ]),
+        (__check_equality_list(x, [(parse_str('sum(prod(1, M,N), prod(-1, N,M)))'), parse_str('0')) ]) or is_different_mode(x['M'], x['N'])),
+      dict(t2=lambda x,_ : complex(x['t'].name)/(2j), t3=lambda x,_ : complex(x['t'].name)/(2))
+    ),
+    #10 for higher order prod(M*M) * N
+    Rule(parse_str('exp(prod(t, BOD(prod(prod(M, M),N), qb1)))'),
+      ['M', 'N', 't', 'qb1'],
+      parse_str('prod(qgate(x, qb1), trotter(prod(t2, sigma(2, qb1), sum(prod(1,prod(M, M),N),nsign(dagger(prod(1,prod(M, M),N))))),  prod(t3, sigma(1, qb1), sum(prod(1,prod(M, M),N),dagger(prod(1,prod(M, M),N))))), qgate(x, qb1) )'),
+      lambda x : _is_const(x['t']) and x['M'] != parse_str('1') and x['N'] != parse_str('1') and
+        (__check_equality_list(x, [(parse_str('sum(prod(1, M,N), prod(-1, N,M)))'), parse_str('0')) ]) or is_different_mode(x['M'], x['N'])),
+      dict(t2=lambda x,_ : complex(x['t'].name)/(2j), t3=lambda x,_ : complex(x['t'].name)/(2))
+    ),
+    #10 for higher order prod(N*M) * prod(M*M)
+    Rule(parse_str('exp(prod(t, BOD(prod(prod(N,M), prod(M,M)), qb1)))'),
+      ['M', 'N', 't', 'qb1'],
+    #   parse_str('prod(qgate(x, qb1), trotter(prod(t2, sigma(2, qb1), sum(prod(1,prod(N,M), prod(M,M)),nsign(dagger(prod(1,prod(N,M),prod(M,M)))))),  prod(t3, sigma(1, qb1), sum(prod(1,prod(N,M),prod(M,M)),dagger(prod(1,prod(N,M),prod(M,M))))), qgate(x, qb1))'),
+    parse_str('prod(qgate(x, qb1), trotter(prod(t2, sigma(2, qb1), sum(prod(1,prod(N,M), prod(M,M)),nsign(prod(1,prod(dagger(M), dagger(M)),prod(dagger(M), dagger(N)))))),  prod(t3, sigma(1, qb1), sum(prod(1,prod(N,M),prod(M,M)), prod(1,prod(dagger(M), dagger(M)),prod(dagger(M), dagger(N))))), qgate(x, qb1))'),
+      lambda x : _is_const(x['t']) and x['M'] != parse_str('1') and x['N'] != parse_str('1') and
+        (__check_equality_list(x, [(parse_str('sum(prod(1, M,N), prod(-1, N,M)))'), parse_str('0')) ]) or is_different_mode(x['M'], x['N'])),
       dict(t2=lambda x,_ : complex(x['t'].name)/(2j), t3=lambda x,_ : complex(x['t'].name)/(2))
     ),
 
@@ -387,6 +563,41 @@ decomp_rules_list = [
          "qb3":(lambda _,env : __increment_counter(env.index_counters, 'qubit'))
     }),
 ]
+
+# additional rule for port (note t < 0)
+new_rule = Rule(
+    parse_str('exp(prod(t, sum(prod(dagger(?b), dagger(?b), dagger(?b), ?b), prod(?b, ?b, ?b, dagger(?b)))))'),
+    ['t', '?b'],
+    #rule 6 input# parse_str('exp(prod(-1.5707963, sigma(3, qb1), sum(prod(1,?b,?b), prod(-1, ?b, ?b)))))'),
+    #rule 6 output# parse_str('BCH( prod(t2, qgate(x, qb1), BOD(dagger(b(1)), qb2), qgate(x, qb1)), prod(t2, BOD(b(0), qb3)))'),
+    # parse_str('BCH( prod(t2, qgate(s, qb1), BOD(prod(b(0), b(1)), qb2), qgate(sdg, qb1)), prod(t2, qgate(x, qb1), BOD(prod(prod(dagger(?b), dagger(?b)), dagger(?b)), qb3), qgate(x, qb1)))'), # hybrid order 5 for M = a_0 * a_1
+    # parse_str('BCH( prod(t2, qgate(s, qb1), BOD(b(0), qb2), qgate(sdg, qb1)), prod(t2, qgate(x, qb1), BOD(prod(prod(b(1), dagger(?b)), prod(dagger(?b), dagger(?b))), qb3), qgate(x, qb1)))'), # hybrid order 5 for M = a_0
+    parse_str('BCH( prod(t2, qgate(s, qb1), BOD(b(1), qb2), qgate(sdg, qb1)), prod(t2, qgate(x, qb1), BOD(prod(prod(b(0), dagger(?b)), prod(dagger(?b), dagger(?b))), qb3), qgate(x, qb1)))'), # hybrid order 5 for M = a_1
+    # parse_str('BCH( prod(t2, qgate(s, qb1), BOD(prod(b(0), dagger(?b)), qb2), qgate(sdg, qb1)), prod(t2, qgate(x, qb1), BOD(prod(dagger(?b), dagger(?b)), qb3), qgate(x, qb1)))'), #hybrid order 4
+    # parse_str('prod(qgate(x, qb1), trotter(prod(t2, sigma(2, qb1), sum(prod(1,?b,?b), nsign(dagger(prod(1,?b,?b))))),  prod(t3, sigma(1, qb1), sum(prod(1,?b,?b),dagger(prod(1,?b,?b))))), qgate(x, qb1) )'),
+    lambda x : x['?b'].name != '1',
+    dict(t2=lambda x,_ : __get_squared_factor(complex(x['t'].name), -1j) * 1j,
+        qb1=(lambda _,env : __increment_counter(env.index_counters, 'qubit')),
+        qb2=(lambda _,env : __increment_counter(env.index_counters, 'qubit')),
+        qb3=(lambda _,env : __increment_counter(env.index_counters, 'qubit'))
+        )        
+)
+
+decomp_rules_list.insert(0, new_rule)
+
+# additional rule for example 3 note(t < 0)
+new_rule_2 = Rule(
+    parse_str('exp(prod(t, sigma(3, qb1), sum(prod(?b, dagger(?b), dagger(?b)), prod(?b, ?b, dagger(?b)))))'),
+    ['t', '?b', 'qb1'],
+    parse_str('BCH( prod(t2, qgate(s, qb1), BOD(?b, qb2), qgate(sdg, qb1)), prod(t2, qgate(x, qb1), BOD(prod(dagger(?b), dagger(?b)), qb3), qgate(x, qb1)))'), #rule 7 output
+    lambda x : x['?b'].name != '1',
+    dict(t2=lambda x,_ : __get_squared_factor(complex(x['t'].name), -1j) * 1j,
+        qb2=(lambda _,env : __increment_counter(env.index_counters, 'qubit')),
+        qb3=(lambda _,env : __increment_counter(env.index_counters, 'qubit'))
+        )        
+)
+
+decomp_rules_list.insert(0, new_rule_2)
 
 def __make_seq(pstring:str, qmode:ParsedNode, rev:bool = False):
     out = ParsedNode('prod', [])
