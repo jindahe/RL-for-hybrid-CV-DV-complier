@@ -1,5 +1,4 @@
 CVDVQASM 1.0;
-qreg q[9] qm[9];
 CP q[0], qm[0];
 CP q[1], qm[1];
 CP q[2], qm[2];
