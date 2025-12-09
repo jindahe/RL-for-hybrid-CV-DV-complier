@@ -10,5 +10,5 @@ def patterns(m):
         reps.add(rep)
     return sorted(reps)
 
-for r in patterns(4):
+for r in patterns(5):
     print(r)
