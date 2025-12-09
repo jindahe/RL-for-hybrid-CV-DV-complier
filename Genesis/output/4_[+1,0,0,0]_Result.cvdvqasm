@@ -1,0 +1,3 @@
+CVDVQASM 1.0;
+qreg q[1] qm[1];
+CD(-1.5707963j) q[0], qm[0];

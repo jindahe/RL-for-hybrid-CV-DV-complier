@@ -32,11 +32,12 @@ def read_pauli_format(filename:str):
             out.append_node(circuits.PauliNode(paulistr, dis_val))
     return out
 
-def read_qasm(filename:str):
+def read_qasm(filename:str, skip_header_lines:int = 0):
     out:circuits.Circuit = circuits.Circuit(wires=[])
     with open(filename, 'r') as fp:
-
-        for line in fp:
+        for line_no, line in enumerate(fp):
+            if line_no < skip_header_lines:
+                continue
             comment_index = line.find(r"//")
             if comment_index != -1:
                 line = line[:comment_index]

@@ -27,7 +27,8 @@ def compute_unit_depth(circ_obj: circuits.Circuit) -> int:
 
 
 def parse_qumode_qasm(filename):
-    circ = qparser.read_qasm(filename)
+    skip_header_lines = 0 if "logical" in filename else 2  # non-logical files carry two-line headers to ignore
+    circ = qparser.read_qasm(filename, skip_header_lines=skip_header_lines)
 
     # latency-based depths per wire (uses Node.get_latecy())
     depths_map = circ.depths()

@@ -583,7 +583,7 @@ new_rule = Rule(
         )        
 )
 
-decomp_rules_list.insert(0, new_rule)
+# decomp_rules_list.insert(0, new_rule)
 
 # additional rule for example 3 note(t < 0)
 new_rule_2 = Rule(
