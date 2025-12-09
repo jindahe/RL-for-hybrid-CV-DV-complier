@@ -1,15 +1,16 @@
 from itertools import permutations
+import numpy as np
 
-nums = ['+2', '-0', '-0', '-0']
+nums = ['+3', '+1', '-0', '-0']
 
 seen = set()
 res = []
 
-for p in permutations(nums, 4):
+for p in permutations(nums, len(nums)):
     if p in seen:
         continue
     seen.add(p)
-    s = "[" + "".join(str(x) for x in p) + "]"  + ", 2, 1, 40, 8, 48, 27, 179,"
+    s = "[" + "".join(str(x) for x in p) + "]"  + ", 42, 2, 800, 148, 948, 434, 3170,"
     res.append(s)
 
 for s in res:
