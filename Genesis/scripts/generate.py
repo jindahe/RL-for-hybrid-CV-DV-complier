@@ -1,7 +1,7 @@
 from itertools import permutations
 import numpy as np
 
-nums = ['-3', '-1', '+1', '-0']
+nums = ['+3', '+1', '-1', '-0']
 
 seen = set()
 res = []
