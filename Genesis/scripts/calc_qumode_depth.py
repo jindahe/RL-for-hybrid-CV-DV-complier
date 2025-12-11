@@ -70,7 +70,33 @@ def parse_qumode_qasm(filename):
     multi_count = metrics.get('multi op gate count', 0)
     total_count = metrics.get('total gate count', single_count + multi_count)
 
+
+    single_qubit_op = 0
+    single_qumode_op = 0
+
+    for node in circ.get_sequence():
+        wires = getattr(node, 'wires', [])
+        # 只统计单线操作
+        if len(wires) == 1:
+            w = wires[0]
+            # 假设 w 是元组 ('type', index)，直接判断第一个元素
+            # 为了防止 w 是字符串的情况，加一个简单的兼容性判断
+            type_tag = w[0] if isinstance(w, (list, tuple)) else str(w)
+            
+            # 注意：这里直接比较字符串，不要用 startswith，除非确定 tag 后面还有字符
+            # 根据前面的 depth 逻辑，这里应该是 'qm' 或 'q'
+            if type_tag == 'qm':
+                single_qumode_op += 1
+            elif type_tag == 'q':
+                single_qubit_op += 1
+            # 如果 type_tag 包含索引(如 "q[0]"), 则保留 startswith
+            elif str(type_tag).startswith('qm'):
+                 single_qumode_op += 1
+            elif str(type_tag).startswith('q'):
+                 single_qubit_op += 1
+
     # counts of wires
+    # 修正：避免 w[0] == 'qm' 这种字符与字符串比较的错误，并防止 qubit 统计包含 qumode
     q_count = len([w for w in circ.wires if w[0] == 'q'])
     qm_count = len([w for w in circ.wires if w[0] == 'qm'])
 
@@ -85,6 +111,8 @@ def parse_qumode_qasm(filename):
     print("")
     print("Gate counts:")
     print(f"  single-op gates: {single_count}")
+    print(f"    - qubit single ops: {single_qubit_op}")
+    print(f"    - qumode single ops: {single_qumode_op}")
     print(f"  multi-op gates: {multi_count}")
     print(f"  total gates: {total_count}")
     print("")

@@ -1,4 +1,4 @@
-K=[abcd], qubit, qumode, single_gate, two_gate, total_gate, depth, latency
+K=[abcd],qubit,qumode,single_gate,two_gate,total_gate, depth, latency
 [-0-0-0-0], 0, 0, 0, 0, 0, 0, 0
 
 [-1-0-0-0], 1, 1, 0, 1, 1, 1, 20

@@ -124,7 +124,7 @@ class HighPrecisionQuantumPredictor:
                     # 双变量预测
                     pred_val = self._model_dual((order, std_val), *params)
                 
-                result[metric] = round(pred_val, 2)
+                result[metric] = int(round(pred_val, 0))
             else:
                 result[metric] = None
                 

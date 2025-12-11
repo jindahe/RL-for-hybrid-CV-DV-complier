@@ -117,7 +117,7 @@ class HighPrecisionQuantumPredictor:
                 else:
                     pred_val = self._model_dual((order, std_val), *params)
                 
-                result[metric] = round(pred_val, 2)
+                result[metric] = int(round(pred_val, 0))
             else:
                 result[metric] = None
                 
@@ -129,7 +129,7 @@ predictor = HighPrecisionQuantumPredictor()
 
 if predictor.is_trained:
     # 这里现在传入 5 个参数
-    res = predictor.predict(-2, -1 ,-1, -1, 0)
+    res = predictor.predict(-8, 0 ,0, 0, 0)
     print(f"Input: {res.get('input')}")
     print(f"Details: {res.get('details')}")
     print("-" * 20)
