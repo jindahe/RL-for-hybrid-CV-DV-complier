@@ -5,16 +5,16 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
 class HighPrecisionQuantumPredictor:
-    def __init__(self, csv_path='experiment/five/result_logic_[abcde].csv'):
+    def __init__(self, csv_path='/Users/jinboyu/Documents/GitHub/RL-for-hybrid-CV-DV-complier/experiment/four/result_logic_[abcd].csv'):
         # 存储结构: models[metric][nz_count] = [params]
         self.models = {} 
         self.metrics = ['single_gate', 'two_gate', 'total_gate', 'depth', 'latency']
         self.is_trained = False
         self.load_and_train(csv_path)
 
-    def _parse_abcde(self, k_str):
+    def _parse_abcd(self, k_str):
         matches = re.findall(r'[+-]?\d+', str(k_str))
-        if len(matches) != 5: return None
+        if len(matches) != 4: return None
         return [int(m) for m in matches]
 
     def _get_features(self, abcd_list):
@@ -22,7 +22,7 @@ class HighPrecisionQuantumPredictor:
         提取三个特征：
         1. Order: 绝对值之和
         2. NZ_Count: 非零个数 (用于分组)
-        3. Std: 非零绝对值的标准差 (用于区分 [2,2] 和 [3,1])
+        3. Std: 非零绝对值的标准差 
         """
         if abcd_list is None: return None, None, None
         
@@ -70,7 +70,7 @@ class HighPrecisionQuantumPredictor:
                 self.models[metric] = {}
                 
                 # 按非零个数分组训练
-                for nz in range(1, 6):
+                for nz in range(1, 5):
                     subset = df[df['nz_count'] == nz]
                     if len(subset) < 4: continue # 数据太少跳过
                     
@@ -135,8 +135,6 @@ class HighPrecisionQuantumPredictor:
 predictor = HighPrecisionQuantumPredictor()
 
 if predictor.is_trained:
-    # 场景 1: 均衡分布 [-2, 2, 0, 0]
-    # 绝对值 [2, 2], Std Dev = 0
     res = predictor.predict(-5, 0 ,0, 0)
     print(f"   Single Gate: {res.get('single_gate')}")
     print(f"   Two Gate:    {res.get('two_gate')}")
